@@ -33,11 +33,11 @@ func ParseUnpackArgs(args []string) (UnpackArgs, error) {
 	for i := 1; i < len(args); i++ {
 		if args[i] == "--data-format" {
 			if i+1 >= len(args) {
-				return UnpackArgs{}, fmt.Errorf("--data-format requires a value (binary, hex, or quoted)")
+				return UnpackArgs{}, fmt.Errorf("--data-format requires a value (binary, hex, quoted, or asciihex)")
 			}
 			dataFormat = args[i+1]
-			if dataFormat != "binary" && dataFormat != "hex" && dataFormat != "quoted" {
-				return UnpackArgs{}, fmt.Errorf("invalid data format '%s'. Must be one of: binary, hex, quoted", dataFormat)
+			if dataFormat != "binary" && dataFormat != "hex" && dataFormat != "quoted" && dataFormat != "asciihex" {
+				return UnpackArgs{}, fmt.Errorf("invalid data format '%s'. Must be one of: binary, hex, quoted, asciihex", dataFormat)
 			}
 			i++ // skip the value
 		} else if outputDir == "" {
@@ -57,13 +57,13 @@ func main() {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage:")
 		fmt.Println("  " + command + " info <filename.dsk>")
-		fmt.Println("  " + command + " unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted]")
+		fmt.Println("  " + command + " unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted|asciihex]")
 		fmt.Println("  " + command + " pack <unpacked_directory> <output.dsk>")
 		fmt.Println("Commands:")
 		fmt.Println("  info    - Display DSK file information")
 		fmt.Println("  unpack  - Extract DSK to directory structure")
 		fmt.Println("           (if output_directory is omitted, creates folder in current directory)")
-		fmt.Println("           --data-format: binary (default), hex, or quoted (quoted-printable)")
+		fmt.Println("           --data-format: binary (default), hex, quoted (quoted-printable), or asciihex")
 		fmt.Println("  pack    - Reconstruct DSK from unpacked directory")
 		os.Exit(1)
 	}
@@ -88,7 +88,7 @@ func main() {
 
 	case "unpack":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: go run . unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted]")
+			fmt.Println("Usage: go run . unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted|asciihex]")
 			os.Exit(1)
 		}
 		

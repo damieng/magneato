@@ -16,7 +16,7 @@ import (
 // Unpack extracts the DSK image to a directory structure
 // If outputDir is empty, creates a folder matching the DSK filename (minus extension) in the current directory
 // If outputDir is specified, creates the folder there
-// dataFormat can be "binary", "hex", or "quoted" (quoted-printable)
+// dataFormat can be "binary", "hex", "quoted" (quoted-printable), or "asciihex"
 func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) error {
 	// Get base name without extension
 	baseName := strings.TrimSuffix(filepath.Base(dskFilename), filepath.Ext(dskFilename))
@@ -149,6 +149,9 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 				case "quoted":
 					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
 					err = WriteQuotedFormat(sectorDataPath, sector.Data)
+				case "asciihex":
+					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.asciihex", sectorNum))
+					err = WriteASCIIHexFormat(sectorDataPath, sector.Data)
 				default: // "binary"
 					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
 					err = WriteBinaryFormat(sectorDataPath, sector.Data)

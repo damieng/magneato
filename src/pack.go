@@ -317,6 +317,7 @@ func Pack(unpackedDir string, outputFilename string) error {
 				binPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
 				hexPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.hex", sectorNum))
 				quotedPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
+				asciihexPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.asciihex", sectorNum))
 				
 				var existingFiles []string
 				var sectorDataPath string
@@ -343,9 +344,16 @@ func Pack(unpackedDir string, outputFilename string) error {
 						dataFormat = "quoted"
 					}
 				}
+				if _, err := os.Stat(asciihexPath); err == nil {
+					existingFiles = append(existingFiles, "asciihex")
+					if sectorDataPath == "" {
+						sectorDataPath = asciihexPath
+						dataFormat = "asciihex"
+					}
+				}
 				
 				if len(existingFiles) == 0 {
-					return fmt.Errorf("no sector data file found for sector %d in track %d (expected sector-%d.bin, sector-%d.hex, or sector-%d.quoted)", sectorNum, i, sectorNum, sectorNum, sectorNum)
+					return fmt.Errorf("no sector data file found for sector %d in track %d (expected sector-%d.bin, sector-%d.hex, sector-%d.quoted, or sector-%d.asciihex)", sectorNum, i, sectorNum, sectorNum, sectorNum, sectorNum)
 				}
 				
 				if len(existingFiles) > 1 {
@@ -359,6 +367,8 @@ func Pack(unpackedDir string, outputFilename string) error {
 					sectorData, err = ReadHexFormat(sectorDataPath)
 				case "quoted":
 					sectorData, err = ReadQuotedFormat(sectorDataPath)
+				case "asciihex":
+					sectorData, err = ReadASCIIHexFormat(sectorDataPath)
 				default: // "binary"
 					sectorData, err = ReadBinaryFormat(sectorDataPath)
 				}
