@@ -1,38 +1,6 @@
-// Copyright (c) 2024 Magneato Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Alternatively, this file may be used under the terms of the MIT license:
-//
-// Copyright (c) 2024 Magneato Contributors
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// Magneato by damieng - https://github.com/damieng/magneato
+// main.go - Main entry point and command routing
+// Dual-licensed under MIT and Apache 2.0
 
 package main
 
@@ -46,12 +14,13 @@ func main() {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage:")
 		fmt.Println("  go run . info <filename.dsk>")
-		fmt.Println("  go run . unpack <filename.dsk> [output_directory]")
+		fmt.Println("  go run . unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted]")
 		fmt.Println("  go run . pack <unpacked_directory> <output.dsk>")
 		fmt.Println("Commands:")
 		fmt.Println("  info    - Display DSK file information")
 		fmt.Println("  unpack  - Extract DSK to directory structure")
 		fmt.Println("           (if output_directory is omitted, creates folder in current directory)")
+		fmt.Println("           --data-format: binary (default), hex, or quoted (quoted-printable)")
 		fmt.Println("  pack    - Reconstruct DSK from unpacked directory")
 		os.Exit(1)
 	}
@@ -75,25 +44,43 @@ func main() {
 		dsk.DumpInfo()
 	case "unpack":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: go run . unpack <filename.dsk> [output_directory]")
+			fmt.Println("Usage: go run . unpack <filename.dsk> [output_directory] [--data-format binary|hex|quoted]")
 			os.Exit(1)
 		}
 		filename := os.Args[2]
 		var outputDir string
-		if len(os.Args) >= 4 {
-			outputDir = os.Args[3]
+		dataFormat := "binary" // default
+		
+		// Parse arguments
+		for i := 3; i < len(os.Args); i++ {
+			if os.Args[i] == "--data-format" {
+				if i+1 >= len(os.Args) {
+					fmt.Println("Error: --data-format requires a value (binary, hex, or quoted)")
+					os.Exit(1)
+				}
+				dataFormat = os.Args[i+1]
+				if dataFormat != "binary" && dataFormat != "hex" && dataFormat != "quoted" {
+					fmt.Printf("Error: invalid data format '%s'. Must be one of: binary, hex, quoted\n", dataFormat)
+					os.Exit(1)
+				}
+				i++ // skip the value
+			} else if outputDir == "" {
+				outputDir = os.Args[i]
+			}
 		}
+		
 		fmt.Printf("Processing file: %s\n", filename)
 		if outputDir != "" {
 			fmt.Printf("Output directory: %s\n", outputDir)
 		}
+		fmt.Printf("Data format: %s\n", dataFormat)
 
 		dsk, err := ParseDSK(filename)
 		if err != nil {
 			log.Fatalf("Error parsing DSK: %v", err)
 		}
 
-		if err := dsk.Unpack(filename, outputDir); err != nil {
+		if err := dsk.Unpack(filename, outputDir, dataFormat); err != nil {
 			log.Fatalf("Error unpacking DSK: %v", err)
 		}
 	case "pack":
@@ -113,4 +100,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

@@ -1,43 +1,10 @@
-// Copyright (c) 2024 Magneato Contributors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Alternatively, this file may be used under the terms of the MIT license:
-//
-// Copyright (c) 2024 Magneato Contributors
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// Magneato by damieng - https://github.com/damieng/magneato
+// pack.go - Pack command implementation
+// Dual-licensed under MIT and Apache 2.0
 
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -47,211 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// GetTrack returns a pointer to a LogicalTrack if found (by cylinder and head)
-func (d *DSK) GetTrack(cylinder int, head int) *LogicalTrack {
-	for i := range d.Tracks {
-		if int(d.Tracks[i].Header.TrackNum) == cylinder && int(d.Tracks[i].Header.SideNum) == head {
-			return &d.Tracks[i]
-		}
-	}
-	return nil
-}
-
-// DumpInfo prints the DSK structure to console
-func (d *DSK) DumpInfo() {
-	fmt.Println("==================================================")
-	fmt.Println("              eDSK FILE INFORMATION               ")
-	fmt.Println("==================================================")
-	fmt.Printf("Signature : %s\n", string(bytes.Trim(d.Header.SignatureString[:], "\x00")))
-	fmt.Printf("Creator   : %s\n", string(bytes.Trim(d.Header.CreatorString[:], "\x00")))
-	fmt.Printf("Tracks    : %d\n", d.Header.Tracks)
-	fmt.Printf("Sides     : %d\n", d.Header.Sides)
-	fmt.Println("--------------------------------------------------")
-
-	for i, t := range d.Tracks {
-		fmt.Printf("LogTrack #%02d | Cyl: %02d | Head: %d | SecCount: %02d | Gap3: %02d\n",
-			i, t.Header.TrackNum, t.Header.SideNum, t.Header.SectorCount, t.Header.Gap3Length)
-
-		for _, s := range t.Sectors {
-			dataPreview := ""
-			if len(s.Data) > 16 {
-				dataPreview = hex.EncodeToString(s.Data[:16]) + "..."
-			} else {
-				dataPreview = hex.EncodeToString(s.Data)
-			}
-
-			fmt.Printf("   [SEC] ID: %02X | N: %d (%d bytes) | ST1: %02X ST2: %02X | Data: %s\n",
-				s.Info.R, s.Info.N, len(s.Data), s.Info.FDCStatus1, s.Info.FDCStatus2, dataPreview)
-		}
-		fmt.Println("- - - - - - - - - - - - - - - - - - - - - - - - -")
-	}
-}
-
-// Unpack extracts the DSK image to a directory structure
-// If outputDir is empty, creates a folder matching the DSK filename (minus extension) in the current directory
-// If outputDir is specified, creates the folder there
-func (d *DSK) Unpack(dskFilename string, outputDir string) error {
-	// Get base name without extension
-	baseName := strings.TrimSuffix(filepath.Base(dskFilename), filepath.Ext(dskFilename))
-	
-	// Determine root directory
-	var rootDir string
-	if outputDir != "" {
-		// Use specified output directory, creating the base name folder inside it
-		rootDir = filepath.Join(outputDir, baseName)
-	} else {
-		// Use current behavior: create folder in current directory
-		rootDir = baseName
-	}
-	
-	if err := os.MkdirAll(rootDir, 0755); err != nil {
-		return fmt.Errorf("failed to create root directory: %v", err)
-	}
-
-	// Create disk-image.meta
-	// Convert TrackSizeTable to slice of integers for JSON (not []uint8 which gets base64 encoded)
-	trackSizeTableSlice := make([]int, len(d.Header.TrackSizeTable))
-	for i, v := range d.Header.TrackSizeTable {
-		trackSizeTableSlice[i] = int(v)
-	}
-	
-	diskMeta := map[string]interface{}{
-		"signature":       string(bytes.Trim(d.Header.SignatureString[:], "\x00")),
-		"creator":         string(bytes.Trim(d.Header.CreatorString[:], "\x00")),
-		"tracks":          d.Header.Tracks,
-		"sides":           d.Header.Sides,
-		"track_size_table": trackSizeTableSlice,
-	}
-
-	diskMetaPath := filepath.Join(rootDir, "disk-image.meta")
-	diskMetaJSON, err := json.MarshalIndent(diskMeta, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal disk metadata: %v", err)
-	}
-	if err := os.WriteFile(diskMetaPath, diskMetaJSON, 0644); err != nil {
-		return fmt.Errorf("failed to write disk metadata: %v", err)
-	}
-
-	// Create a map to quickly find tracks by their position index
-	trackMap := make(map[int]*LogicalTrack)
-	for i := range d.Tracks {
-		// Calculate position index: track_number * sides + side_number
-		posIdx := int(d.Tracks[i].Header.TrackNum)*int(d.Header.Sides) + int(d.Tracks[i].Header.SideNum)
-		trackMap[posIdx] = &d.Tracks[i]
-	}
-
-	// Process all possible track positions (including unformatted ones)
-	totalBlocks := int(d.Header.Tracks) * int(d.Header.Sides)
-	for i := 0; i < totalBlocks; i++ {
-		// Calculate track number and side from position index
-		trackNum := i / int(d.Header.Sides)
-		sideNum := i % int(d.Header.Sides)
-		
-		// Check if this track is formatted (exists in trackMap)
-		track, hasTrack := trackMap[i]
-		
-		// Create track directory (format: track-XX-side-Y or track-XX)
-		trackDirName := fmt.Sprintf("track-%02d", i)
-		if d.Header.Sides > 1 {
-			trackDirName = fmt.Sprintf("track-%02d-side-%d", trackNum, sideNum)
-		}
-		trackDir := filepath.Join(rootDir, trackDirName)
-
-		if err := os.MkdirAll(trackDir, 0755); err != nil {
-			return fmt.Errorf("failed to create track directory: %v", err)
-		}
-
-		// Create track.meta
-		var trackMeta map[string]interface{}
-		if hasTrack && track != nil {
-			// Formatted track - use actual track header data
-			// Convert byte arrays to slices for JSON
-			signatureSlice := make([]uint8, len(track.Header.Signature))
-			copy(signatureSlice, track.Header.Signature[:])
-			unusedSlice := make([]uint8, len(track.Header.Unused))
-			copy(unusedSlice, track.Header.Unused[:])
-			unused2Slice := make([]uint8, len(track.Header.Unused2))
-			copy(unused2Slice, track.Header.Unused2[:])
-			
-			trackMeta = map[string]interface{}{
-				"signature":    signatureSlice,
-				"unused":       unusedSlice,
-				"track_number": track.Header.TrackNum,
-				"side_number":  track.Header.SideNum,
-				"unused2":      unused2Slice,
-				"sector_size":  track.Header.SectorSize,
-				"sector_count": track.Header.SectorCount,
-				"gap3_length":  track.Header.Gap3Length,
-				"filler_byte":  track.Header.FillerByte,
-				"formatted":    true,
-			}
-		} else {
-			// Unformatted track - create minimal metadata
-			defaultSignature := []byte("Track-Info\r\n")
-			signatureSlice := make([]uint8, 13)
-			copy(signatureSlice, defaultSignature)
-			
-			trackMeta = map[string]interface{}{
-				"signature":    signatureSlice,
-				"unused":       []uint8{0, 0, 0}, // 3 bytes per spec (not 4)
-				"track_number": uint8(trackNum),
-				"side_number":  uint8(sideNum),
-				"unused2":      []uint8{0, 0},
-				"sector_size":  uint8(0),
-				"sector_count": uint8(0),
-				"gap3_length":  uint8(0),
-				"filler_byte":  uint8(0),
-				"formatted":    false,
-			}
-		}
-
-		trackMetaPath := filepath.Join(trackDir, "track.meta")
-		trackMetaJSON, err := json.MarshalIndent(trackMeta, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal track metadata: %v", err)
-		}
-		if err := os.WriteFile(trackMetaPath, trackMetaJSON, 0644); err != nil {
-			return fmt.Errorf("failed to write track metadata: %v", err)
-		}
-
-		// Process sectors only if track is formatted
-		if hasTrack && track != nil {
-			for _, sector := range track.Sectors {
-				sectorNum := sector.Info.R
-
-				// Create sector-n.data
-				sectorDataPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.data", sectorNum))
-				if err := os.WriteFile(sectorDataPath, sector.Data, 0644); err != nil {
-					return fmt.Errorf("failed to write sector data: %v", err)
-				}
-
-				// Create sector-n.meta
-				sectorMeta := map[string]interface{}{
-					"cylinder":    sector.Info.C,
-					"head":        sector.Info.H,
-					"sector_id":   sector.Info.R,
-					"sector_size": sector.Info.N,
-					"fdc_status1": sector.Info.FDCStatus1,
-					"fdc_status2": sector.Info.FDCStatus2,
-					"data_length": sector.Info.DataLength,
-				}
-
-				sectorMetaPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.meta", sectorNum))
-				sectorMetaJSON, err := json.MarshalIndent(sectorMeta, "", "  ")
-				if err != nil {
-					return fmt.Errorf("failed to marshal sector metadata: %v", err)
-				}
-				if err := os.WriteFile(sectorMetaPath, sectorMetaJSON, 0644); err != nil {
-					return fmt.Errorf("failed to write sector metadata: %v", err)
-				}
-			}
-		}
-	}
-
-	fmt.Printf("Successfully unpacked DSK to: %s\n", rootDir)
-	return nil
-}
 
 // Pack reconstructs a DSK file from an unpacked directory structure
 func Pack(unpackedDir string, outputFilename string) error {
@@ -564,12 +326,67 @@ func Pack(unpackedDir string, outputFilename string) error {
 				
 				sectorInfos = append(sectorInfos, sectorInfo)
 				
-				// Read sector data
-				sectorDataPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.data", sectorNum))
-				sectorData, err := os.ReadFile(sectorDataPath)
+				// Check which format files exist for this sector
+				binPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
+				hexPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.hex", sectorNum))
+				quotedPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
+				
+				var existingFiles []string
+				var sectorDataPath string
+				var dataFormat string
+				
+				if _, err := os.Stat(binPath); err == nil {
+					existingFiles = append(existingFiles, "binary")
+					if sectorDataPath == "" {
+						sectorDataPath = binPath
+						dataFormat = "binary"
+					}
+				}
+				if _, err := os.Stat(hexPath); err == nil {
+					existingFiles = append(existingFiles, "hex")
+					if sectorDataPath == "" {
+						sectorDataPath = hexPath
+						dataFormat = "hex"
+					}
+				}
+				if _, err := os.Stat(quotedPath); err == nil {
+					existingFiles = append(existingFiles, "quoted")
+					if sectorDataPath == "" {
+						sectorDataPath = quotedPath
+						dataFormat = "quoted"
+					}
+				}
+				
+				if len(existingFiles) == 0 {
+					return fmt.Errorf("no sector data file found for sector %d in track %d (expected sector-%d.bin, sector-%d.hex, or sector-%d.quoted)", sectorNum, i, sectorNum, sectorNum, sectorNum)
+				}
+				
+				if len(existingFiles) > 1 {
+					return fmt.Errorf("multiple sector data files found for sector %d in track %d: %v (only one format should exist)", sectorNum, i, existingFiles)
+				}
+				
+				// Read and decode sector data
+				encodedData, err := os.ReadFile(sectorDataPath)
 				if err != nil {
 					return fmt.Errorf("failed to read sector data: %v", err)
 				}
+				
+				var sectorData []byte
+				switch dataFormat {
+				case "hex":
+					sectorData, err = hex.DecodeString(string(encodedData))
+					if err != nil {
+						return fmt.Errorf("failed to decode hex data for sector %d: %v", sectorNum, err)
+					}
+				case "quoted":
+					sectorData, err = decodeQuotedPrintable(encodedData)
+					if err != nil {
+						return fmt.Errorf("failed to decode quoted-printable data for sector %d: %v", sectorNum, err)
+					}
+				default: // "binary"
+					sectorData = encodedData
+				}
+				
 				sectorDataMap[sectorNum] = sectorData
 			}
 		}
