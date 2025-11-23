@@ -13,12 +13,20 @@ import (
 // DumpInfo prints the DSK structure to console
 func (d *DSK) DumpInfo() {
 	fmt.Println("==================================================")
-	fmt.Println("              eDSK FILE INFORMATION               ")
+	formatStr := "Extended"
+	if d.Format == FormatStandard {
+		formatStr = "Standard"
+	}
+	fmt.Printf("              %s DSK FILE INFORMATION               \n", formatStr)
 	fmt.Println("==================================================")
 	fmt.Printf("Signature : %s\n", string(bytes.Trim(d.Header.SignatureString[:], "\x00")))
 	fmt.Printf("Creator   : %s\n", string(bytes.Trim(d.Header.CreatorString[:], "\x00")))
+	fmt.Printf("Format    : %s\n", formatStr)
 	fmt.Printf("Tracks    : %d\n", d.Header.Tracks)
 	fmt.Printf("Sides     : %d\n", d.Header.Sides)
+	if d.Format == FormatStandard {
+		fmt.Printf("Track Size: %d bytes\n", d.StandardTrackSize)
+	}
 	fmt.Println("--------------------------------------------------")
 
 	for i, t := range d.Tracks {

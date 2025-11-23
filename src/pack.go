@@ -31,12 +31,20 @@ func Pack(unpackedDir string, outputFilename string) error {
 	// Reconstruct DiskHeader
 	header := DiskHeader{}
 	
-	// Signature
-	sigStr, ok := diskMeta["signature"].(string)
-	if !ok {
-		return fmt.Errorf("invalid signature in disk metadata")
+	// Set default signature based on format (if available)
+	// Default to extended format signature
+	sigBytes := []byte("EXTENDED CPC DSK File\r\nDisk-Info\r\n")
+	if formatStr, ok := diskMeta["format"].(string); ok && formatStr == "standard" {
+		// Standard format signature (must start with "MV - CPC" and be 34 bytes)
+		sigBytes = make([]byte, 34)
+		copy(sigBytes, "MV - CPCEMU Disk-File")
+		// Rest is padded with zeros
 	}
-	copy(header.SignatureString[:], []byte(sigStr))
+	// Ensure signature is exactly 34 bytes
+	copy(header.SignatureString[:], sigBytes)
+	for i := len(sigBytes); i < len(header.SignatureString); i++ {
+		header.SignatureString[i] = 0
+	}
 	
 	// Creator
 	creatorStr, ok := diskMeta["creator"].(string)

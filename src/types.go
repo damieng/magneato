@@ -73,8 +73,21 @@ type LogicalTrack struct {
 	Sectors []LogicalSector
 }
 
+// DSKFormat represents the type of DSK format
+type DSKFormat int
+
+const (
+	// FormatExtended represents the Extended CPC DSK format
+	FormatExtended DSKFormat = iota
+	// FormatStandard represents the Standard DSK format
+	FormatStandard
+)
+
 // DSK represents the parsed disk image
 type DSK struct {
+	Format DSKFormat // Standard or Extended format
 	Header DiskHeader
 	Tracks []LogicalTrack // Flat list, can be mapped to Cyl/Head via Header info
+	// For standard format, this stores the fixed track size
+	StandardTrackSize uint16
 }

@@ -93,14 +93,25 @@ disk/
 
 The reverse of `unpack` this combines the various files back into a .DSK file attempting to preserve precision and minimize data and meta loss.
 
-## File Format
+## File Formats
 
-Magneato supports the Extended CPC DSK format, which includes:
+Magneato supports both Standard and Extended CPC DSK formats:
+
+### Extended DSK Format (eDSK)
 
 - **Disk Header**: 256-byte header with signature, creator info, and track size table
 - **Track Blocks**: Variable-length blocks containing track headers and sector data
 - **Sector Information**: 8-byte descriptors with cylinder, head, sector ID, and FDC status
 - **Sector Data**: Raw sector payloads with variable lengths
+
+### Standard DSK Format
+
+- **Disk Header**: 256-byte header with signature, creator info, and fixed track size
+- **Track Blocks**: Fixed-size blocks (all tracks same size) containing track headers and sector data
+- **Sector Information**: 8-byte descriptors (last 2 bytes unused) with cylinder, head, sector ID, and FDC status
+- **Sector Data**: Raw sector payloads with fixed sizes per track
+
+**Note**: Magneato can read both formats, but only Extended DSK format can be written (via the `pack` command).
 
 ## Project Structure
 

@@ -46,7 +46,6 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 	}
 	
 	diskMeta := map[string]interface{}{
-		"signature":       string(bytes.Trim(d.Header.SignatureString[:], "\x00")),
 		"creator":         string(bytes.Trim(d.Header.CreatorString[:], "\x00")),
 		"tracks":          d.Header.Tracks,
 		"sides":           d.Header.Sides,

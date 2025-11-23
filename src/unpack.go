@@ -36,18 +36,24 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 	}
 
 	// Create disk-image.meta
-	// Convert TrackSizeTable to slice of integers for JSON (not []uint8 which gets base64 encoded)
-	trackSizeTableSlice := make([]int, len(d.Header.TrackSizeTable))
-	for i, v := range d.Header.TrackSizeTable {
-		trackSizeTableSlice[i] = int(v)
-	}
-	
 	diskMeta := map[string]interface{}{
-		"signature":       string(bytes.Trim(d.Header.SignatureString[:], "\x00")),
-		"creator":         string(bytes.Trim(d.Header.CreatorString[:], "\x00")),
-		"tracks":          d.Header.Tracks,
-		"sides":           d.Header.Sides,
-		"track_size_table": trackSizeTableSlice,
+		"creator": string(bytes.Trim(d.Header.CreatorString[:], "\x00")),
+		"tracks":  d.Header.Tracks,
+		"sides":   d.Header.Sides,
+		"format":  "extended",
+	}
+
+	// Add format-specific metadata
+	if d.Format == FormatStandard {
+		diskMeta["format"] = "standard"
+		diskMeta["track_size"] = d.StandardTrackSize
+	} else {
+		// Convert TrackSizeTable to slice of integers for JSON (not []uint8 which gets base64 encoded)
+		trackSizeTableSlice := make([]int, len(d.Header.TrackSizeTable))
+		for i, v := range d.Header.TrackSizeTable {
+			trackSizeTableSlice[i] = int(v)
+		}
+		diskMeta["track_size_table"] = trackSizeTableSlice
 	}
 
 	diskMetaPath := filepath.Join(rootDir, "disk-image.meta")
