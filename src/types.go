@@ -83,6 +83,72 @@ const (
 	FormatStandard
 )
 
+// SpecificationFormat represents the disk format type in the specification block
+type SpecificationFormat int
+
+const (
+	// SpecFormatPCW_SS represents Amstrad PCW single-sided format
+	SpecFormatPCW_SS SpecificationFormat = iota
+	// SpecFormatCPC_System represents Amstrad CPC system format
+	SpecFormatCPC_System
+	// SpecFormatCPC_Data represents Amstrad CPC data format
+	SpecFormatCPC_Data
+	// SpecFormatPCW_DS represents Amstrad PCW double-sided format
+	SpecFormatPCW_DS
+)
+
+// SpecificationSide represents the side configuration in the specification block
+type SpecificationSide int
+
+const (
+	// SpecSideSingle represents single-sided disk
+	SpecSideSingle SpecificationSide = iota
+	// SpecSideDoubleAlternate represents double-sided alternate format
+	SpecSideDoubleAlternate
+	// SpecSideDoubleSuccessive represents double-sided successive format
+	SpecSideDoubleSuccessive
+)
+
+// SpecificationTrack represents the track density in the specification block
+type SpecificationTrack int
+
+const (
+	// SpecTrackSingle represents single density tracks
+	SpecTrackSingle SpecificationTrack = iota
+	// SpecTrackDouble represents double density tracks
+	SpecTrackDouble
+)
+
+// Specification represents the disk format specification block
+// This is typically stored in the first 16 bytes of sector 0, track 0, side 0
+// Layout per TDSKSpecification from DiskImageManager:
+//   0: Format (0=PCW_SS, 1=CPC_System, 2=CPC_Data, 3=PCW_DS)
+//   1: Side configuration (bits 0-1: 0=Single, 1=DoubleAlternate, 2=DoubleSuccessive; bit 7: Track density)
+//   2: TracksPerSide
+//   3: SectorsPerTrack
+//   4: SectorSize (log2(sectorSize) - 7, so 0=128, 1=256, 2=512, etc.)
+//   5: ReservedTracks
+//   6: BlockShift
+//   7: DirectoryBlocks
+//   8: GapReadWrite
+//   9: GapFormat
+//   10-14: Reserved (0)
+//   15: Checksum
+type Specification struct {
+	Format         SpecificationFormat // Disk format type
+	Side           SpecificationSide    // Side configuration
+	Track          SpecificationTrack   // Track density
+	TracksPerSide  uint8                // Number of tracks per side
+	SectorsPerTrack uint8                // Number of sectors per track
+	SectorSize     uint16               // Sector size in bytes (calculated from N)
+	ReservedTracks uint8                // Number of reserved tracks
+	BlockShift     uint8                // Block shift value
+	DirectoryBlocks uint8                // Number of directory blocks
+	GapReadWrite   uint8                // GAP#3 length for read/write
+	GapFormat      uint8                // GAP#3 length for format
+	Checksum       uint8                // Checksum byte
+}
+
 // DSK represents the parsed disk image
 type DSK struct {
 	Format DSKFormat // Standard or Extended format
@@ -90,4 +156,6 @@ type DSK struct {
 	Tracks []LogicalTrack // Flat list, can be mapped to Cyl/Head via Header info
 	// For standard format, this stores the fixed track size
 	StandardTrackSize uint16
+	// Specification block (if present, typically in sector 0, track 0, side 0)
+	Specification *Specification
 }
