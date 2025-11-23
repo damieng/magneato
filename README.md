@@ -1,6 +1,8 @@
 # Magneato
 
-A command-line tool for parsing and extracting Extended CPC DSK (eDSK) disk image files. Magneato provides a clean interface to inspect and unpack DSK files into a structured directory format.
+A command-line tool for parsing and extracting Extended CPC DSK (eDSK) disk image files. Magneato provides a clean interface to inspect, unpack and pack DSK files into a structured directory format.
+
+**Currently experimental**
 
 ## Features
 
@@ -25,12 +27,12 @@ go build -o magneato
 Or run directly:
 
 ```bash
-go run . <command> <filename.dsk>
+go run src/. <command> <filename.dsk>
 ```
 
 ## Usage
 
-Magneato supports two commands:
+Magneato supports three commands:
 
 ### Info Command
 
@@ -55,6 +57,8 @@ Extract a DSK file into a structured directory:
 magneato unpack disk.dsk
 ```
 
+You can also specify a `--data-format`
+
 This creates a directory structure:
 
 ```
@@ -62,9 +66,9 @@ disk/
 ├── disk-image.meta          # Disk-level metadata (JSON)
 ├── track-00-side-0/
 │   ├── track.meta           # Track metadata (JSON)
-│   ├── sector-0.data        # Raw sector data
+│   ├── sector-0.bin         # Binary sector data
 │   ├── sector-0.meta        # Sector metadata (JSON)
-│   ├── sector-1.data
+│   ├── sector-1.bin
 │   ├── sector-1.meta
 │   └── ...
 ├── track-00-side-1/
@@ -77,11 +81,17 @@ disk/
 - **Root directory**: Named after the DSK file (without extension)
 - **Track directories**: Named `track-XX-side-Y` for multi-sided disks, or `track-XX` for single-sided
 - **Sector files**:
-  - `sector-N.data`: Raw binary sector data
   - `sector-N.meta`: Sector metadata in JSON format
+  - `sector-N.bin`: Sector data in raw binary format
+  - `sector-N.hex`: Sector data in hex format
+  - `sector-N.quote`: Sector data in quoted-printable format
 - **Metadata files**:
   - `disk-image.meta`: Disk header information
   - `track.meta`: Track header information
+
+## Pack Command
+
+The reverse of `unpack` this combines the various files back into a .DSK file attempting to preserve precision and minimize data and meta loss.
 
 ## File Format
 
