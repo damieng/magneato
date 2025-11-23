@@ -57,7 +57,7 @@ Extract a DSK file into a structured directory:
 magneato unpack disk.dsk
 ```
 
-You can also specify a `--data-format`
+You can also specify a `--data-format` that allows choices of `binary`, `hex`, `quoted` and `asciihex`. ASCIIHex is a compact human-readable format that shows ASCII where possible but toggles back and forth to HEX when needed. The final character in the string is the toggle character.
 
 This creates a directory structure:
 
