@@ -1,0 +1,31 @@
+{
+    "go.testFlags": ["-v"],
+    "go.buildFlags": [],
+    "go.lintFlags": [],
+    "go.vetFlags": [],
+    "go.coverOnSave": false,
+    "go.coverOnSingleTest": false,
+    "go.useCodeSnippetsOnFunctionSuggest": true,
+    "go.formatTool": "goimports",
+    "go.lintTool": "golint",
+    "go.testTimeout": "30s",
+    "go.toolsManagement.checkForUpdates": "local",
+    "files.exclude": {
+        "**/magneato.exe": true,
+        "**/magneato": true
+    },
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+        "editor.suggest.snippetsPreventQuickSuggestions": false
+    },
+    "[go.mod]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    }
+}
+

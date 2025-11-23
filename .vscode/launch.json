@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Magneato",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src",
+            "env": {},
+            "args": [],
+            "showLog": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug: info command",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src",
+            "env": {},
+            "args": ["info", "test.dsk"],
+            "showLog": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug: unpack command",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src",
+            "env": {},
+            "args": ["unpack", "test.dsk", "--data-format", "hex"],
+            "showLog": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug: pack command",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src",
+            "env": {},
+            "args": ["pack", "unpacked_dir", "output.dsk"],
+            "showLog": false,
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
+

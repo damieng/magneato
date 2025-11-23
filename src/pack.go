@@ -210,24 +210,12 @@ func Pack(unpackedDir string, outputFilename string) error {
 		// Reconstruct TrackHeader
 		trackHeader := TrackHeader{}
 		
-		// Signature (13 bytes: "Track-Info\r\n")
-		sigArray, ok := trackMeta["signature"].([]interface{})
-		if !ok {
-			// Default signature if missing (13 bytes)
-			sigBytes := []byte("Track-Info\r\n")
-			copy(trackHeader.Signature[:], sigBytes)
-			// Pad with zeros if needed
-			for i := len(sigBytes); i < len(trackHeader.Signature); i++ {
-				trackHeader.Signature[i] = 0
-			}
-		} else {
-			for j, v := range sigArray {
-				if j >= len(trackHeader.Signature) {
-					break
-				}
-				val, _ := v.(float64)
-				trackHeader.Signature[j] = uint8(val)
-			}
+		// Signature is fixed: "Track-Info\r\n" (13 bytes)
+		sigBytes := []byte("Track-Info\r\n")
+		copy(trackHeader.Signature[:], sigBytes)
+		// Pad with zeros if needed
+		for j := len(sigBytes); j < len(trackHeader.Signature); j++ {
+			trackHeader.Signature[j] = 0
 		}
 		
 		// Unused

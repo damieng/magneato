@@ -4,6 +4,7 @@
 
 package main
 
+// Constants
 const (
 	HeaderSize        = 0x100 // 256 bytes
 	TrackSizeTableLen = 204   // 256 - 0x34 - 0x1E approx, but spec defines fixed offset

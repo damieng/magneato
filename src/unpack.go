@@ -96,15 +96,12 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 		if hasTrack && track != nil {
 			// Formatted track - use actual track header data
 			// Convert byte arrays to slices for JSON
-			signatureSlice := make([]uint8, len(track.Header.Signature))
-			copy(signatureSlice, track.Header.Signature[:])
 			unusedSlice := make([]uint8, len(track.Header.Unused))
 			copy(unusedSlice, track.Header.Unused[:])
 			unused2Slice := make([]uint8, len(track.Header.Unused2))
 			copy(unused2Slice, track.Header.Unused2[:])
 			
 			trackMeta = map[string]interface{}{
-				"signature":    signatureSlice,
 				"unused":       unusedSlice,
 				"track_number": track.Header.TrackNum,
 				"side_number":  track.Header.SideNum,
@@ -117,12 +114,7 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 			}
 		} else {
 			// Unformatted track - create minimal metadata
-			defaultSignature := []byte("Track-Info\r\n")
-			signatureSlice := make([]uint8, 13)
-			copy(signatureSlice, defaultSignature)
-			
 			trackMeta = map[string]interface{}{
-				"signature":    signatureSlice,
 				"unused":       []uint8{0, 0, 0}, // 3 bytes per spec (not 4)
 				"track_number": uint8(trackNum),
 				"side_number":  uint8(sideNum),
