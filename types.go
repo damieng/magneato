@@ -46,12 +46,20 @@ const (
 )
 
 // DiskHeader represents the 256-byte file header
+// Layout:
+//   0x00-0x21: SignatureString (34 bytes)
+//   0x22-0x2F: CreatorString (14 bytes)
+//   0x30: Tracks (1 byte)
+//   0x31: Sides (1 byte)
+//   0x32-0x33: Padding (2 bytes)
+//   0x34-0xFF: TrackSizeTable (204 bytes)
 type DiskHeader struct {
 	SignatureString [34]byte // "EXTENDED CPC DSK File\r\nDisk-Info\r\n"
 	CreatorString   [14]byte
 	Tracks          uint8 // Number of tracks (cylinders)
 	Sides           uint8 // Number of sides
-	TrackSizeTable  [204]uint8 // High byte of track sizes
+	_               [2]byte // Padding to align TrackSizeTable at offset 0x34
+	TrackSizeTable  [204]uint8 // High byte of track sizes (starts at offset 0x34)
 }
 
 // SectorInfo represents the 8-byte sector descriptor in the Track Block
@@ -66,9 +74,19 @@ type SectorInfo struct {
 }
 
 // TrackHeader represents the start of a track block
+// Layout per spec:
+//   00-0c: "Track-Info\r\n" (13 bytes)
+//   0d-0f: unused (3 bytes)
+//   10: track number (1 byte)
+//   11: side number (1 byte)
+//   12-13: unused (2 bytes)
+//   14: sector size (1 byte)
+//   15: number of sectors (1 byte)
+//   16: GAP#3 length (1 byte)
+//   17: filler byte (1 byte)
 type TrackHeader struct {
-	Signature    [12]byte // "Track-Info\r\n"
-	Unused       [4]byte
+	Signature    [13]byte // "Track-Info\r\n" (13 bytes, not 12!)
+	Unused       [3]byte  // unused (3 bytes, not 4!)
 	TrackNum     uint8
 	SideNum      uint8
 	Unused2      [2]byte

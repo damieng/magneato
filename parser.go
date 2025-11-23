@@ -106,8 +106,9 @@ func ParseDSK(filename string) (*DSK, error) {
 			return nil, fmt.Errorf("failed to read track header %d: %v", i, err)
 		}
 
-		// Check Track Signature
-		if string(tHeader.Signature[:10]) != "Track-Info" {
+		// Check Track Signature (should be "Track-Info\r\n" - 13 bytes)
+		sigStr := string(bytes.TrimRight(tHeader.Signature[:], "\x00\r\n"))
+		if !strings.HasPrefix(sigStr, "Track-Info") {
 			// Some variants might differ, but this is standard
 			fmt.Printf("Warning: Track %d signature mismatch: %s\n", i, tHeader.Signature)
 		}
