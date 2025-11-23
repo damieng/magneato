@@ -6,7 +6,6 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -292,7 +291,7 @@ func Pack(unpackedDir string, outputFilename string) error {
 				}
 				
 				var sectorMeta map[string]interface{}
-				if err := json.Unmarshal(sectorMetaJSON, &sectorMeta); err != nil {
+				if err = json.Unmarshal(sectorMetaJSON, &sectorMeta); err != nil {
 					return fmt.Errorf("failed to parse sector metadata: %v", err)
 				}
 				
@@ -301,8 +300,8 @@ func Pack(unpackedDir string, outputFilename string) error {
 				sectorInfo.C = uint8(cylinder)
 				head, _ := sectorMeta["head"].(float64)
 				sectorInfo.H = uint8(head)
-				sectorId, _ := sectorMeta["sector_id"].(float64)
-				sectorInfo.R = uint8(sectorId)
+				sectorID, _ := sectorMeta["sector_id"].(float64)
+				sectorInfo.R = uint8(sectorID)
 				sectorSize, _ := sectorMeta["sector_size"].(float64)
 				sectorInfo.N = uint8(sectorSize)
 				fdcStatus1, _ := sectorMeta["fdc_status1"].(float64)
@@ -353,26 +352,19 @@ func Pack(unpackedDir string, outputFilename string) error {
 					return fmt.Errorf("multiple sector data files found for sector %d in track %d: %v (only one format should exist)", sectorNum, i, existingFiles)
 				}
 				
-				// Read and decode sector data
-				encodedData, err := os.ReadFile(sectorDataPath)
-				if err != nil {
-					return fmt.Errorf("failed to read sector data: %v", err)
-				}
-				
+				// Read and decode sector data based on format
 				var sectorData []byte
 				switch dataFormat {
 				case "hex":
-					sectorData, err = hex.DecodeString(string(encodedData))
-					if err != nil {
-						return fmt.Errorf("failed to decode hex data for sector %d: %v", sectorNum, err)
-					}
+					sectorData, err = ReadHexFormat(sectorDataPath)
 				case "quoted":
-					sectorData, err = decodeQuotedPrintable(encodedData)
-					if err != nil {
-						return fmt.Errorf("failed to decode quoted-printable data for sector %d: %v", sectorNum, err)
-					}
+					sectorData, err = ReadQuotedFormat(sectorDataPath)
 				default: // "binary"
-					sectorData = encodedData
+					sectorData, err = ReadBinaryFormat(sectorDataPath)
+				}
+				
+				if err != nil {
+					return fmt.Errorf("failed to read sector data for sector %d: %v", sectorNum, err)
 				}
 				
 				sectorDataMap[sectorNum] = sectorData

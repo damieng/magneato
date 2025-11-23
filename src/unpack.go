@@ -6,11 +6,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"mime/quotedprintable"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,27 +138,23 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 			for _, sector := range track.Sectors {
 				sectorNum := sector.Info.R
 
-				// Determine file extension and encode data based on format
+				// Determine file path and write data based on format
 				var sectorDataPath string
-				var encodedData []byte
 				var err error
 				
 				switch dataFormat {
 				case "hex":
 					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.hex", sectorNum))
-					encodedData = []byte(hex.EncodeToString(sector.Data))
+					err = WriteHexFormat(sectorDataPath, sector.Data)
 				case "quoted":
 					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
-					encodedData, err = encodeQuotedPrintable(sector.Data)
-					if err != nil {
-						return fmt.Errorf("failed to encode sector data as quoted-printable: %v", err)
-					}
+					err = WriteQuotedFormat(sectorDataPath, sector.Data)
 				default: // "binary"
 					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
-					encodedData = sector.Data
+					err = WriteBinaryFormat(sectorDataPath, sector.Data)
 				}
 				
-				if err := os.WriteFile(sectorDataPath, encodedData, 0644); err != nil {
+				if err != nil {
 					return fmt.Errorf("failed to write sector data: %v", err)
 				}
 
@@ -190,24 +183,5 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 
 	fmt.Printf("Successfully unpacked DSK to: %s\n", rootDir)
 	return nil
-}
-
-// encodeQuotedPrintable encodes binary data as quoted-printable
-func encodeQuotedPrintable(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	writer := quotedprintable.NewWriter(&buf)
-	if _, err := writer.Write(data); err != nil {
-		return nil, err
-	}
-	if err := writer.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// decodeQuotedPrintable decodes quoted-printable data to binary
-func decodeQuotedPrintable(data []byte) ([]byte, error) {
-	reader := quotedprintable.NewReader(bytes.NewReader(data))
-	return io.ReadAll(reader)
 }
 
