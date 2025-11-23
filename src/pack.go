@@ -313,66 +313,19 @@ func Pack(unpackedDir string, outputFilename string) error {
 				
 				sectorInfos = append(sectorInfos, sectorInfo)
 				
-				// Check which format files exist for this sector
-				binPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
-				hexPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.hex", sectorNum))
-				quotedPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
-				asciihexPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.asciihex", sectorNum))
-				
-				var existingFiles []string
-				var sectorDataPath string
-				var dataFormat string
-				
-				if _, err := os.Stat(binPath); err == nil {
-					existingFiles = append(existingFiles, "binary")
-					if sectorDataPath == "" {
-						sectorDataPath = binPath
-						dataFormat = "binary"
-					}
-				}
-				if _, err := os.Stat(hexPath); err == nil {
-					existingFiles = append(existingFiles, "hex")
-					if sectorDataPath == "" {
-						sectorDataPath = hexPath
-						dataFormat = "hex"
-					}
-				}
-				if _, err := os.Stat(quotedPath); err == nil {
-					existingFiles = append(existingFiles, "quoted")
-					if sectorDataPath == "" {
-						sectorDataPath = quotedPath
-						dataFormat = "quoted"
-					}
-				}
-				if _, err := os.Stat(asciihexPath); err == nil {
-					existingFiles = append(existingFiles, "asciihex")
-					if sectorDataPath == "" {
-						sectorDataPath = asciihexPath
-						dataFormat = "asciihex"
-					}
+				// Detect format and get file path
+				dataFormat, sectorDataPath, err := DetectFormatFromFile(trackDir, sectorNum)
+				if err != nil {
+					return fmt.Errorf("failed to detect format for sector %d in track %d: %v", sectorNum, i, err)
 				}
 				
-				if len(existingFiles) == 0 {
-					return fmt.Errorf("no sector data file found for sector %d in track %d (expected sector-%d.bin, sector-%d.hex, sector-%d.quoted, or sector-%d.asciihex)", sectorNum, i, sectorNum, sectorNum, sectorNum, sectorNum)
+				// Get the appropriate reader function and read sector data
+				reader, err := GetFormatReader(dataFormat)
+				if err != nil {
+					return fmt.Errorf("failed to get format reader for sector %d: %v", sectorNum, err)
 				}
 				
-				if len(existingFiles) > 1 {
-					return fmt.Errorf("multiple sector data files found for sector %d in track %d: %v (only one format should exist)", sectorNum, i, existingFiles)
-				}
-				
-				// Read and decode sector data based on format
-				var sectorData []byte
-				switch dataFormat {
-				case "hex":
-					sectorData, err = ReadHexFormat(sectorDataPath)
-				case "quoted":
-					sectorData, err = ReadQuotedFormat(sectorDataPath)
-				case "asciihex":
-					sectorData, err = ReadASCIIHexFormat(sectorDataPath)
-				default: // "binary"
-					sectorData, err = ReadBinaryFormat(sectorDataPath)
-				}
-				
+				sectorData, err := reader(sectorDataPath)
 				if err != nil {
 					return fmt.Errorf("failed to read sector data for sector %d: %v", sectorNum, err)
 				}

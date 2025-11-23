@@ -138,26 +138,27 @@ func (d *DSK) Unpack(dskFilename string, outputDir string, dataFormat string) er
 			for _, sector := range track.Sectors {
 				sectorNum := sector.Info.R
 
-				// Determine file path and write data based on format
-				var sectorDataPath string
-				var err error
-				
-				switch dataFormat {
-				case "hex":
-					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.hex", sectorNum))
-					err = WriteHexFormat(sectorDataPath, sector.Data)
-				case "quoted":
-					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.quoted", sectorNum))
-					err = WriteQuotedFormat(sectorDataPath, sector.Data)
-				case "asciihex":
-					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.asciihex", sectorNum))
-					err = WriteASCIIHexFormat(sectorDataPath, sector.Data)
-				default: // "binary"
-					sectorDataPath = filepath.Join(trackDir, fmt.Sprintf("sector-%d.bin", sectorNum))
-					err = WriteBinaryFormat(sectorDataPath, sector.Data)
+				// Get the appropriate writer function and determine file path
+				writer, err := GetFormatWriter(dataFormat)
+				if err != nil {
+					return fmt.Errorf("failed to get format writer: %v", err)
 				}
 				
-				if err != nil {
+				// Determine file extension based on format
+				var ext string
+				switch dataFormat {
+				case "hex":
+					ext = "hex"
+				case "quoted":
+					ext = "quoted"
+				case "asciihex":
+					ext = "asciihex"
+				default: // "binary"
+					ext = "bin"
+				}
+				
+				sectorDataPath := filepath.Join(trackDir, fmt.Sprintf("sector-%d.%s", sectorNum, ext))
+				if err := writer(sectorDataPath, sector.Data); err != nil {
 					return fmt.Errorf("failed to write sector data: %v", err)
 				}
 
